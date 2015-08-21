@@ -16,11 +16,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     static final String LOG_TAG = "myLog";
     public static final String TABLE_NAME = "selfie";
 
-    DatabaseHelper mDbHelper;
+
+    Context context;
 
 
     public DatabaseHelper(Context context) {
         super(context, DB_Name, null, DB_VERSION);
+        this.context = context;
+
     }
 
     @Override
@@ -39,27 +42,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     }
 
-    public void insert(Context context, String name, String filePath){
-        mDbHelper = new DatabaseHelper(context);
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+    public void insert(String name, String filePath){
+        Log.d(LOG_TAG, "-------------------------------------Insert----------------------");
+
+        SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
 
         values.put("name", name);
         values.put("filePath", filePath);
         db.insert(TABLE_NAME, null, values);
 
+
         db.close();
-        mDbHelper.close();
+       this.close();
     }
 
-    public void read(Context context){
-        mDbHelper = new DatabaseHelper(context);
-        SQLiteDatabase db = mDbHelper.getReadableDatabase();
+    public void read(){
+        Log.d(LOG_TAG, "-------------------------------------read----------------------");
+        SQLiteDatabase db = this.getReadableDatabase();
         String name;
         String path;
 
         Cursor cursor = db.query(TABLE_NAME,null,null,null,null,null,null);
-        if(cursor.getCount() != 0){
+        if(cursor.moveToFirst()){
             do{
                 int nameIndex = cursor.getColumnIndex("name");
                 int pathIndex = cursor.getColumnIndex("filePath");
@@ -68,8 +73,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 path = cursor.getString(pathIndex);
 
                 Log.d(LOG_TAG, name + "  ->  " + path);
-            }while (cursor.moveToFirst());
+            }while (cursor.moveToNext());
         }
+        cursor.close();
+        db.close();
     }
 
 }
