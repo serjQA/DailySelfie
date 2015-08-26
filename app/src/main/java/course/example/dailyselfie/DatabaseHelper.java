@@ -57,26 +57,31 @@ public class DatabaseHelper extends SQLiteOpenHelper {
        this.close();
     }
 
-    public void read(){
+    public Cursor read(){
         Log.d(LOG_TAG, "-------------------------------------read----------------------");
         SQLiteDatabase db = this.getReadableDatabase();
         String name;
         String path;
+        Cursor cursor = null;
+        try {
+            cursor= db.query(TABLE_NAME, null, null, null, null, null, null);
+            if (cursor.moveToFirst()) {
+                do {
+                    int nameIndex = cursor.getColumnIndex("name");
+                    int pathIndex = cursor.getColumnIndex("filePath");
 
-        Cursor cursor = db.query(TABLE_NAME,null,null,null,null,null,null);
-        if(cursor.moveToFirst()){
-            do{
-                int nameIndex = cursor.getColumnIndex("name");
-                int pathIndex = cursor.getColumnIndex("filePath");
+                    name = cursor.getString(nameIndex);
+                    path = cursor.getString(pathIndex);
 
-                name = cursor.getString(nameIndex);
-                path = cursor.getString(pathIndex);
-
-                Log.d(LOG_TAG, name + "  ->  " + path);
-            }while (cursor.moveToNext());
+                    Log.d(LOG_TAG, name + "  ->  " + path);
+                } while (cursor.moveToNext());
+            }
+            return cursor;
         }
-        cursor.close();
-        db.close();
-    }
+        finally{
+            cursor.close();
+            db.close();
+        }
 
+    }
 }

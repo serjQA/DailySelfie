@@ -1,6 +1,8 @@
 package course.example.dailyselfie;
 
+import android.app.ListActivity;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Environment;
@@ -10,7 +12,12 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Adapter;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.ListAdapter;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
 import android.widget.Toast;
 
 import java.io.File;
@@ -18,26 +25,45 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
     static final String LOG_TAG = "myLog";
-    ImageView mThub;
     DatabaseHelper mDbHelper;
+    ListAdapter notes;
+    ListView mListView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        mThub = (ImageView)findViewById(R.id.imageView);
+
+        mListView = (ListView)findViewById(android.R.id.list);
+
+        mListView.setAdapter(notes);
+        mListView.post(new Runnable() {
+            @Override
+            public void run() {
+                mDbHelper = new DatabaseHelper(MainActivity.this);
+            }
+        });
+        ArrayList <HashMap<String, String>> aList = getPhotoPathArray();
+        String [] from = {"picturePath", "name"};
+        int [] to = {R.id.picture,R.id.text};
+        SimpleAdapter adapter = new SimpleAdapter(this,aList,R.layout.item,from,to);
+        mListView.setAdapter(adapter);
+
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
@@ -119,4 +145,28 @@ public class MainActivity extends AppCompatActivity {
         mediaFile = new File(mediaStorageDir.getPath() + File.separator + mImageName);
         return mediaFile;
     }
+
+
+    private  void updateList(){
+        Cursor c = mDbHelper.read();
+        notes = new ArrayAdapter<Object>(this,R.layout.item, c.getColumnNames());
+//        setListAdapter((ListAdapter) notes);
+    }
+
+    private ArrayList <HashMap<String, String>> getPhotoPathArray(){
+        File mediaStorageDir = new File(Environment.getExternalStorageDirectory()
+                + "/Android/data/"
+                + getApplicationContext().getPackageName()
+                + "/Files");
+        File [] file = mediaStorageDir.listFiles();
+        ArrayList <HashMap<String, String>> aList = new ArrayList<>();
+        for (int i = 0; i < file.length;i++){
+            HashMap<String, String> hm = new HashMap<>();
+            hm.put("picturePath", file[i].getAbsolutePath());
+            hm.put("name", file[i].getName());
+            aList.add(hm);
+        }
+        return aList;
+    }
+
 }
