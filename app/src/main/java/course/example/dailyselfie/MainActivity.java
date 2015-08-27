@@ -1,21 +1,16 @@
 package course.example.dailyselfie;
 
-import android.app.ListActivity;
 import android.content.Intent;
-import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.net.Uri;
+import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.Adapter;
-import android.widget.ArrayAdapter;
-import android.widget.ImageView;
-import android.widget.ListAdapter;
+import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.Toast;
@@ -28,36 +23,34 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     static final int REQUEST_IMAGE_CAPTURE = 1;
     static final String LOG_TAG = "myLog";
-    DatabaseHelper mDbHelper;
-    ListAdapter notes;
+
+    SimpleAdapter adapter;
     ListView mListView;
+    SimpleDateFormat timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mListView = (ListView)findViewById(R.id.list);
+        updateList();
 
-        mListView = (ListView)findViewById(android.R.id.list);
-
-        mListView.setAdapter(notes);
-        mListView.post(new Runnable() {
+        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void run() {
-                mDbHelper = new DatabaseHelper(MainActivity.this);
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                HashMap<String, String> hm = (HashMap) mListView.getAdapter().getItem(position);
+                String path = hm.get("picturePath");
+                Toast.makeText(MainActivity.this, path, Toast.LENGTH_SHORT).show();
+                Intent fullSizePicture = new Intent(MainActivity.this, ImageVievActivity.class);
+                fullSizePicture.putExtra("picturePath", path);
+                startActivity(fullSizePicture);
             }
         });
-        ArrayList <HashMap<String, String>> aList = getPhotoPathArray();
-        String [] from = {"picturePath", "name"};
-        int [] to = {R.id.picture,R.id.text};
-        SimpleAdapter adapter = new SimpleAdapter(this,aList,R.layout.item,from,to);
-        mListView.setAdapter(adapter);
-
     }
 
     @Override
@@ -69,19 +62,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         Toast.makeText(this, "Take photo clicked", Toast.LENGTH_SHORT).show();
-
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-
-        File imagesFolder = new File(Environment.getExternalStorageDirectory(), "MyImages");
-        imagesFolder.mkdirs();
-
-        File image = new File(imagesFolder, "QR_" + timeStamp + ".png");
-        Uri uriSavedImage = Uri.fromFile(image);
 
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
             startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
         }
+
         return super.onOptionsItemSelected(item);
     }
 
@@ -92,11 +78,9 @@ public class MainActivity extends AppCompatActivity {
             Bundle extras = data.getExtras();
             Bitmap imageBitmap = (Bitmap)extras.get("data");
             storeImage(imageBitmap);
+            updateList();
             Toast.makeText(this,"Picture saved", Toast.LENGTH_SHORT).show();
         }
-
-
-
     }
 
 
@@ -111,9 +95,7 @@ public class MainActivity extends AppCompatActivity {
             FileOutputStream fos = new FileOutputStream(pictureFile);
             image.compress(Bitmap.CompressFormat.PNG, 90, fos);
             fos.close();
-            mDbHelper  = new DatabaseHelper(getApplicationContext());
-            mDbHelper.insert(pictureFile.getName(),pictureFile.getAbsolutePath());
-            mDbHelper.read();
+
         } catch (FileNotFoundException e) {
             Log.d(LOG_TAG, "File not found: " + e.getMessage());
         } catch (IOException e) {
@@ -139,18 +121,20 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         // Create a media file name
-        String timeStamp = new SimpleDateFormat("ddMMyyyy_HHmm").format(new Date());
+        String fileName =timeStamp.format(new Date());
         File mediaFile;
-        String mImageName="MI_"+ timeStamp +".jpg";
+        String mImageName="MI_"+ fileName +".jpg";
         mediaFile = new File(mediaStorageDir.getPath() + File.separator + mImageName);
         return mediaFile;
     }
 
 
     private  void updateList(){
-        Cursor c = mDbHelper.read();
-        notes = new ArrayAdapter<Object>(this,R.layout.item, c.getColumnNames());
-//        setListAdapter((ListAdapter) notes);
+        ArrayList <HashMap<String, String>> aList = getPhotoPathArray();
+        String [] from = {"picturePath", "name"};
+        int [] to = {R.id.picture,R.id.text};
+        adapter = new SimpleAdapter(this,aList,R.layout.item,from,to);
+        mListView.setAdapter(adapter);
     }
 
     private ArrayList <HashMap<String, String>> getPhotoPathArray(){
@@ -158,6 +142,9 @@ public class MainActivity extends AppCompatActivity {
                 + "/Android/data/"
                 + getApplicationContext().getPackageName()
                 + "/Files");
+        if(!mediaStorageDir.exists()){
+            return  new ArrayList <HashMap<String, String>>();
+        }
         File [] file = mediaStorageDir.listFiles();
         ArrayList <HashMap<String, String>> aList = new ArrayList<>();
         for (int i = 0; i < file.length;i++){
